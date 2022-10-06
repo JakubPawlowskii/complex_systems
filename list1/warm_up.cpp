@@ -1,104 +1,45 @@
 #include <iostream>
 #include <fstream>
 #include "../utils/prng.hpp"
+#include "../utils/lattices.hpp"
 
-enum class site{
-    empty, dog, flea
+enum class site
+{
+    empty,
+    dog,
+    visited_by_flea,
+    current_flea
 };
 
-std::ostream& operator<< (std::ostream& out, const site& site)
+std::ostream &operator<<(std::ostream &out, const site &site)
 {
     switch (site)
     {
     case site::empty:
-        // out << "e";
-        out << "\033[1;37me\033[0m";
+        // out << "\033[1;37me\033[0m";
+        out << "\033[38:5:15me\033[0m";
         break;
     case site::dog:
-        out << "\033[1;31md\033[0m";
+        // out << "\033[1;31md\033[0m";
+        out << "\033[38:5:160md\033[0m";
         break;
-    default:
-        out << "\033[1;32mf\033[0m";
+    case site::visited_by_flea:
+        // out << "\033[1;32mf\033[0m";
+        out << "\033[38:5:21mf\033[0m";
+        break;
+    case site::current_flea:
+        // out << "\033[1;32mf\033[0m";
+        out << "\033[38:5:82mf\033[0m";
+        break;
     }
 
     return out;
 }
 
-struct lattice
-{
-    uint size = 0;
-    double filling_factor = 0;
-    site** lattice_sites;
-    prng gen;
-
-    lattice(uint L, double p):
-    size(L), filling_factor(p)
-    {
-        if(filling_factor > 1 || filling_factor < 0)
-        {
-            throw std::invalid_argument("Probability must be in [0,1].");
-        }
-        lattice_sites = new site*[size];
-        for(uint i = 0; i < size; i++) lattice_sites[i] = new site[size];
-        
-        for(uint i = 0; i < size; i++)
-        {
-            for(uint j = 0; j < size; j++)
-            {
-                lattice_sites[i][j] = (gen.random_double() < filling_factor) ? site::dog : site::empty;
-            }
-        }
-
-    }
-
-    ~lattice() {
-        for(uint i = 0; i < size; i++) delete[] lattice_sites[i];        
-        delete[] lattice_sites;
-    }
-
-    void set_lattice_site(std::pair<uint,uint> coord, site val)
-    {
-        lattice_sites[coord.first][coord.second] = val;
-    }
-    void print_lattice(){
-        for(uint i = 0; i < size; i++)
-        {
-            for(uint j = 0; j < size; j++)
-            {
-                std::cout << lattice_sites[i][j] << " ";
-            }
-            std::cout << std::endl;
-        }
-    }
-    void save_lattice_to_file(std::string filename){
-        std::ofstream output(filename);
-        for(uint i = 0; i < size; i++)
-        {
-            for(uint j = 0; j < size; j++)
-            {
-                output << lattice_sites[i][j] << " ";
-            }
-            output << std::endl;
-        }
-        output.close();
-    }
-    void print_lattice_params(){
-        std::cout << "# Lattice size is " << size << " x " << size << std::endl;
-        std::cout << "# Probability of site being occupied by dog is " << filling_factor << std::endl;
-    }
-
-    std::pair<uint,uint> random_possible_jump(std::pair<uint,uint> current_coord)
-    {
-        
-    }
-
-};
-
-
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
 
-    if(argc != 2)
+    if (argc != 2)
     {
         throw std::invalid_argument("Invalid number of cmd arguments. Must be 1.");
     }
@@ -109,38 +50,72 @@ int main(int argc, char** argv)
     std::string init_filename(argv[1]);
     std::ifstream file(init_filename);
 
-    for (std::string line; std::getline(file, line); ) 
+    for (std::string line; std::getline(file, line);)
     {
-        if( line.substr(0,2) == "#L" ){
+        if (line.substr(0, 2) == "#L")
+        {
             L = std::stoi(line.substr(2));
         }
-        else if (line.substr(0,2) == "#p")
+        else if (line.substr(0, 2) == "#p")
         {
             p = std::stod(line.substr(2));
         }
-        else{
+        else
+        {
             throw std::invalid_argument("Invalid values in initialization file. Must be only L and p.");
         }
     }
 
-// Task 1
-    // lattice l(L,p);
-    // l.print_lattice_params();
-    // l.print_lattice();
+    // Task 1
+    // square_lattice<site> lattice(L, {p,1-p}, {site::dog,site::empty});
+    // lattice.print_lattice_params();
+    // lattice.print_lattice();
 
-// Task 2
-    lattice l(L,p);
-    
-    std::pair<uint, uint> coord = {0,0};
-    l.set_lattice_site(coord, site::flea);
+    // Task 2
 
+    square_lattice<site> lattice(L, {p, 1 - p}, {site::dog, site::empty});
+    auto find_first = [&](site type) -> coord
+    {
+        for (uint i = 0; i < L; i++)
+        {
+            for (uint j = 0; j < L; j++)
+            {
+                if (lattice.lattice_sites[i][j] == type)
+                {
+                    return {i, j};
+                }
+            }
+        }
+        return {-1, -1};
+    };
 
+    lattice.print_lattice();
+    std::cout << std::endl;
+    coord current_pos = find_first(site::dog);
+    lattice.set_lattice_site(current_pos, site::current_flea);
+    lattice.print_lattice();
+    std::cout << std::endl;
 
-    
+    auto possible_moves = lattice.possible_moves_nn(current_pos, {site::dog, site::visited_by_flea});
+    if (possible_moves.empty())
+    {
+        std::cout << "Cannot move." << std::endl;
+    }
+    else
+    {
+        std::vector<double> probabilities;
+        probabilities.resize(possible_moves.size());
+        for (uint i = 0; i < possible_moves.size(); i++)
+        {
+            probabilities[i] = 1.0 / possible_moves.size();
+        }
 
-    
-
-
+        coord next_pos = lattice.random_choice<coord>(possible_moves, probabilities);
+        lattice.set_lattice_site(current_pos, site::visited_by_flea);
+        lattice.set_lattice_site(next_pos, site::current_flea);
+        current_pos = next_pos;
+        lattice.print_lattice();
+    }
 
     return 0;
 }
