@@ -4,8 +4,8 @@
  * @version 1.0 30.12.2020
  * */
 
-#ifndef LATTICE_QUANTUM_SYSTEM_TIMER_HPP
-#define LATTICE_QUANTUM_SYSTEM_TIMER_HPP
+#ifndef TIMER_HPP
+#define TIMER_HPP
 
 #include <chrono>
 
@@ -32,4 +32,4 @@ public:
 };
 
 }
-#endif //LATTICE_QUANTUM_SYSTEM_TIMER_HPP
+#endif //TIMER_HPP

@@ -4,8 +4,8 @@
 // Header only
 //
 
-#ifndef SIMULATION_PRNG_H
-#define SIMULATION_PRNG_H
+#ifndef PRNG_H
+#define PRNG_H
 #include <random>
 
 class prng {
@@ -69,4 +69,4 @@ public:
 };
 
 
-#endif //SIMULATION_PRNG_H
+#endif //PRNG_H
