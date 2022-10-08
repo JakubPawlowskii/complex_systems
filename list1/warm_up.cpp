@@ -1,5 +1,7 @@
 #include <iostream>
 #include <fstream>
+#include <chrono>
+#include <thread>
 #include "../utils/prng.hpp"
 #include "../utils/lattices.hpp"
 
@@ -8,7 +10,7 @@ enum class site
     empty,
     dog,
     visited_by_flea,
-    current_flea
+    flea
 };
 
 std::ostream &operator<<(std::ostream &out, const site &site)
@@ -25,11 +27,11 @@ std::ostream &operator<<(std::ostream &out, const site &site)
         break;
     case site::visited_by_flea:
         // out << "\033[1;32mf\033[0m";
-        out << "\033[38:5:21mf\033[0m";
+        out << "\033[38:5:39mf\033[0m";
         break;
-    case site::current_flea:
+    case site::flea:
         // out << "\033[1;32mf\033[0m";
-        out << "\033[38:5:82mf\033[0m";
+        out << "\033[1m\033[38:5:82mf\033[0m";
         break;
     }
 
@@ -38,6 +40,9 @@ std::ostream &operator<<(std::ostream &out, const site &site)
 
 int main(int argc, char **argv)
 {
+    using namespace std::this_thread;
+    using namespace std::chrono_literals;
+    using std::chrono::system_clock;
 
     if (argc != 2)
     {
@@ -46,6 +51,7 @@ int main(int argc, char **argv)
 
     uint L = 4;
     double p = 0.1;
+    uint max_t = 100;
 
     std::string init_filename(argv[1]);
     std::ifstream file(init_filename);
@@ -59,6 +65,10 @@ int main(int argc, char **argv)
         else if (line.substr(0, 2) == "#p")
         {
             p = std::stod(line.substr(2));
+        }
+        else if(line.substr(0,2) == "#t")
+        {
+            max_t = std::stoi(line.substr(2));
         }
         else
         {
@@ -89,33 +99,42 @@ int main(int argc, char **argv)
         return {-1, -1};
     };
 
+    lattice.print_lattice_params();
     lattice.print_lattice();
-    std::cout << std::endl;
-    coord current_pos = find_first(site::dog);
-    lattice.set_lattice_site(current_pos, site::current_flea);
-    lattice.print_lattice();
-    std::cout << std::endl;
+    std::cout << "Press any key to start simulation." << std::endl;
+    std::cin.get();
 
-    auto possible_moves = lattice.possible_moves_nn(current_pos, {site::dog, site::visited_by_flea});
-    if (possible_moves.empty())
+    coord current_flea_pos = find_first(site::dog);
+    lattice.set_lattice_site(current_flea_pos, site::flea);
+    bool flag = true;
+    for(uint t = 0; t <= max_t; t++)
     {
-        std::cout << "Cannot move." << std::endl;
-    }
-    else
-    {
-        std::vector<double> probabilities;
-        probabilities.resize(possible_moves.size());
-        for (uint i = 0; i < possible_moves.size(); i++)
+        std::cout << "\033[2J\033[;H"; // clearing the screen
+        std::cout << "t = " << t << std::endl;
+        lattice.print_lattice();
+        sleep_for(0.05s);
+        auto possible_moves = lattice.possible_moves_nn(current_flea_pos, {site::dog, site::visited_by_flea});
+        if (possible_moves.empty())
         {
-            probabilities[i] = 1.0 / possible_moves.size();
+            std::cout << "Flea cannot move. Ending simulation." << std::endl;
+            flag = false;
+            break;
+        }
+        else
+        {
+            std::vector<double> probabilities;
+            probabilities.resize(possible_moves.size());
+            for (uint i = 0; i < possible_moves.size(); i++)
+            {
+                probabilities[i] = 1.0 / possible_moves.size();
+            }
+
+            lattice.set_lattice_site(current_flea_pos, site::visited_by_flea);
+            current_flea_pos = lattice.random_choice<coord>(possible_moves, probabilities);
+            lattice.set_lattice_site(current_flea_pos, site::flea);
         }
 
-        coord next_pos = lattice.random_choice<coord>(possible_moves, probabilities);
-        lattice.set_lattice_site(current_pos, site::visited_by_flea);
-        lattice.set_lattice_site(next_pos, site::current_flea);
-        current_pos = next_pos;
-        lattice.print_lattice();
     }
-
+    if(flag) std::cout << "Max time reached. Ending simulation." << std::endl;
     return 0;
 }
