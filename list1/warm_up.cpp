@@ -85,11 +85,16 @@ int main(int argc, char **argv)
 
     // Task 2
 
-    square_lattice<site, neighbors_calculation::calculate_on_the_fly, bc::open> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
-    for (auto neighbor : lattice.get_nn({0,0}))
-    {
-        std::cout << neighbor << std::endl;
-    }
+    // square_lattice<site, neighbors_calculation::calculate_on_the_fly, bc::periodic> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
+    triangular_lattice<site, neighbors_calculation::calculate_on_the_fly, bc::open> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
+    
+    // lattice({10,10}) = site::flea;
+    // for (auto neighbor : lattice.get_nnn({10,10}))
+    // {
+    //     std::cout << neighbor << std::endl;
+    //     lattice(neighbor) = site::visited_by_flea;
+    // }
+
 
     auto find_first = [&](site type) -> coord
     {
