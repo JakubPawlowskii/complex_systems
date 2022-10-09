@@ -5,7 +5,7 @@
 #include <vector>
 #include <algorithm>
 
-using coord = std::pair<size_t, size_t>;
+using coord = std::pair<std::size_t, std::size_t>;
 std::ostream &operator<<(std::ostream &out, const coord &c)
 {
     out << "(" << c.first << ", " << c.second << ")";
@@ -28,19 +28,19 @@ namespace lattices2d
         open
     };
 
-    enum class neighbors_calculation
+    enum class neighbors
     {
         precalculate,
         calculate_on_the_fly
     };
 
-    template <typename T, neighbors_calculation mode, bc boundary_conditions>
+    template <typename T, neighbors mode, bc boundary_conditions>
     class lattice_2d
     {
     protected:
-        size_t _rows;
-        size_t _cols;
-        size_t _n_sites;
+        std::size_t _rows;
+        std::size_t _cols;
+        std::size_t _n_sites;
         std::vector<T> _lattice_sites;
         lattice_type _lattice_type;
         std::vector<std::vector<coord>> _nn;
@@ -50,29 +50,34 @@ namespace lattices2d
         prng gen;
 
         virtual ~lattice_2d() = default;
+        virtual std::unique_ptr<lattice_2d<T, mode, boundary_conditions>> clone() const = 0;
+        virtual std::unique_ptr<lattice_2d<T, mode, boundary_conditions>> move_clone() = 0;
 
         T &operator()(coord coordinate)
         {
             return _lattice_sites[coordinate.first * _cols + coordinate.second];
         }
-        T at(coord coordinate)
+        T &at(coord coordinate)
         {
             return _lattice_sites[coordinate.first * _cols + coordinate.second];
         }
 
-        size_t get_n_rows()
+        std::size_t get_n_rows()
         {
             return _rows;
         }
-        size_t get_n_cols()
+        std::size_t get_n_cols()
         {
             return _cols;
         }
-        size_t get_n_sites()
+        std::size_t get_n_sites()
         {
             return _n_sites;
         }
-
+        std::vector<T> get_lattice_sites()
+        {
+            return _lattice_sites;
+        }
         lattice_type get_lattice_type()
         {
             return _lattice_type;
@@ -94,7 +99,7 @@ namespace lattices2d
 
         std::vector<coord> get_nn(coord coordinate)
         {
-            if constexpr (mode == neighbors_calculation::precalculate)
+            if constexpr (mode == neighbors::precalculate)
             {
                 return _nn[coordinate.first * _cols + coordinate.second];
             }
@@ -105,7 +110,7 @@ namespace lattices2d
         }
         std::vector<coord> get_nnn(coord coordinate)
         {
-            if constexpr (mode == neighbors_calculation::precalculate)
+            if constexpr (mode == neighbors::precalculate)
             {
                 return _nnn[coordinate.first * _cols + coordinate.second];
             }
@@ -118,11 +123,11 @@ namespace lattices2d
         virtual std::vector<coord> calculate_nn(coord coordinate) = 0;
         virtual std::vector<coord> calculate_nnn(coord coordinate) = 0;
 
-        size_t get_nn_number(coord coordinate)
+        std::size_t get_nn_number(coord coordinate)
         {
             return _nn[coordinate.first * _cols + coordinate.second].size();
         }
-        size_t get_nnn_number(coord coordinate)
+        std::size_t get_nnn_number(coord coordinate)
         {
             return _nnn[coordinate.first * _cols + coordinate.second].size();
         }
@@ -149,9 +154,9 @@ namespace lattices2d
         {
             std::ofstream file;
             file.open(filename);
-            for (size_t i = 0; i < _rows; i++)
+            for (std::size_t i = 0; i < _rows; i++)
             {
-                for (size_t j = 0; j < _cols; j++)
+                for (std::size_t j = 0; j < _cols; j++)
                 {
                     file << _lattice_sites[i * _cols + j] << ",";
                 }
@@ -159,42 +164,10 @@ namespace lattices2d
             }
             file.close();
         }
-    };
 
-    template <typename T, neighbors_calculation mode, bc boundary_conditions>
-    class square_lattice final : public virtual lattice_2d<T, mode, boundary_conditions>
-    {
-    public:
-        square_lattice()
+        void fill_lattice(std::vector<T> states, std::vector<double> probabilities)
         {
-            this->_lattice_type = lattice_type::square;
-            this->_rows = 0;
-            this->_cols = 0;
-            this->_n_sites = 0;
-        }
-
-        square_lattice(size_t rows, size_t cols, std::vector<T> initial_values, std::vector<double> probabilities)
-        {
-            this->_rows = rows;
-            this->_cols = cols;
-            this->_n_sites = rows * cols;
-            this->_lattice_sites.resize(this->_n_sites);
-            this->_lattice_type = lattice_type::square;
-
-            if constexpr (mode == neighbors_calculation::precalculate)
-            {
-                this->_nn.resize(this->_n_sites);
-                this->_nnn.resize(this->_n_sites);
-                for (size_t i = 0; i < this->_rows; i++)
-                {
-                    for (size_t j = 0; j < this->_cols; j++)
-                    {
-                        this->_nn[i * this->_cols + j] = calculate_nn({i, j});
-                        this->_nnn[i * this->_cols + j] = calculate_nnn({i, j});
-                    }
-                }
-            }
-            if (initial_values.size() != probabilities.size())
+            if (states.size() != probabilities.size())
             {
                 throw std::invalid_argument("Initial values and probabilities must have the same size.");
             }
@@ -212,13 +185,54 @@ namespace lattices2d
                 throw std::invalid_argument("Probabilities must sum to 1.");
             }
 
-            for (size_t i = 0; i < this->_rows; i++)
+            for (std::size_t i = 0; i < _rows; i++)
             {
-                for (size_t j = 0; j < this->_cols; j++)
+                for (std::size_t j = 0; j < _cols; j++)
                 {
-                    this->_lattice_sites[i * this->_cols + j] = this->random_choice(initial_values, probabilities);
+                    _lattice_sites[i * _cols + j] = random_choice(states, probabilities);
                 }
             }
+        }
+
+        void calculate_neighbors()
+        {
+            _nn.resize(_n_sites);
+            _nnn.resize(_n_sites);
+            for (std::size_t i = 0; i < _rows; i++)
+            {
+                for (std::size_t j = 0; j < _cols; j++)
+                {
+                    _nn[i * _cols + j] = calculate_nn({i, j});
+                    _nnn[i * _cols + j] = calculate_nnn({i, j});
+                }
+            }
+        }
+    };
+
+    template <typename T, neighbors mode, bc boundary_conditions>
+    class square_lattice final : public virtual lattice_2d<T, mode, boundary_conditions>
+    {
+    public:
+        square_lattice()
+        {
+            this->_lattice_type = lattice_type::square;
+            this->_rows = 0;
+            this->_cols = 0;
+            this->_n_sites = 0;
+        }
+        square_lattice(std::size_t rows, std::size_t cols, std::vector<T> initial_values, std::vector<double> probabilities)
+        {
+            this->_rows = rows;
+            this->_cols = cols;
+            this->_n_sites = rows * cols;
+            this->_lattice_sites.resize(this->_n_sites);
+            this->_lattice_type = lattice_type::square;
+
+            if constexpr (mode == neighbors::precalculate)
+            {
+                this->calculate_neighbors();
+            }
+            this->fill_lattice(initial_values, probabilities);
         }
 
         // copy constructor
@@ -229,7 +243,7 @@ namespace lattices2d
             this->_cols = other._cols;
             this->_n_sites = other._n_sites;
             this->_lattice_sites = other._lattice_sites;
-            if constexpr (mode == neighbors_calculation::precalculate)
+            if constexpr (mode == neighbors::precalculate)
             {
                 this->_nn = other._nn;
                 this->_nnn = other._nnn;
@@ -243,7 +257,7 @@ namespace lattices2d
             this->_cols = other._cols;
             this->_n_sites = other._n_sites;
             this->_lattice_sites = std::move(other._lattice_sites);
-            if constexpr (mode == neighbors_calculation::precalculate)
+            if constexpr (mode == neighbors::precalculate)
             {
                 this->_nn = std::move(other._nn);
                 this->_nnn = std::move(other._nnn);
@@ -257,7 +271,7 @@ namespace lattices2d
             this->_cols = other._cols;
             this->_n_sites = other._n_sites;
             this->_lattice_sites = other._lattice_sites;
-            if constexpr (mode == neighbors_calculation::precalculate)
+            if constexpr (mode == neighbors::precalculate)
             {
                 this->_nn = other._nn;
                 this->_nnn = other._nnn;
@@ -272,7 +286,7 @@ namespace lattices2d
             this->_cols = other._cols;
             this->_n_sites = other._n_sites;
             this->_lattice_sites = std::move(other._lattice_sites);
-            if constexpr (mode == neighbors_calculation::precalculate)
+            if constexpr (mode == neighbors::precalculate)
             {
                 this->_nn = std::move(other._nn);
                 this->_nnn = std::move(other._nnn);
@@ -281,12 +295,20 @@ namespace lattices2d
         }
 
         ~square_lattice() = default;
+        virtual std::unique_ptr<lattice_2d<T, mode, boundary_conditions>> clone() const override
+        {
+            return std::unique_ptr<lattice_2d<T, mode, boundary_conditions>>(new square_lattice<T,mode,boundary_conditions>(*this));
+        }
+        virtual std::unique_ptr<lattice_2d<T, mode, boundary_conditions>> move_clone() override
+        {
+            return std::unique_ptr<lattice_2d<T, mode, boundary_conditions>>(new square_lattice<T,mode,boundary_conditions>(std::move(*this)));
+        }
 
         void print_lattice() override
         {
-            for (size_t i = 0; i < this->_rows; i++)
+            for (std::size_t i = 0; i < this->_rows; i++)
             {
-                for (size_t j = 0; j < this->_cols; j++)
+                for (std::size_t j = 0; j < this->_cols; j++)
                 {
                     std::cout << this->_lattice_sites[i * this->_cols + j] << " ";
                 }
@@ -377,7 +399,7 @@ namespace lattices2d
         }
     };
 
-    template <typename T, neighbors_calculation mode, bc boundary_conditions>
+    template <typename T, neighbors mode, bc boundary_conditions>
     class triangular_lattice : public lattice_2d<T, mode, boundary_conditions>
     {
     public:
@@ -388,7 +410,7 @@ namespace lattices2d
             this->_cols = 0;
             this->_n_sites = 0;
         }
-        triangular_lattice(size_t rows, size_t cols, std::vector<T> initial_values, std::vector<double> probabilities)
+        triangular_lattice(std::size_t rows, std::size_t cols, std::vector<T> initial_values, std::vector<double> probabilities)
         {
             this->_rows = rows;
             this->_cols = cols;
@@ -396,44 +418,11 @@ namespace lattices2d
             this->_lattice_sites.resize(this->_n_sites);
             this->_lattice_type = lattice_type::square;
 
-            if constexpr (mode == neighbors_calculation::precalculate)
+            if constexpr (mode == neighbors::precalculate)
             {
-                this->_nn.resize(this->_n_sites);
-                this->_nnn.resize(this->_n_sites);
-                for (size_t i = 0; i < this->_rows; i++)
-                {
-                    for (size_t j = 0; j < this->_cols; j++)
-                    {
-                        this->_nn[i * this->_cols + j] = calculate_nn({i, j});
-                        this->_nnn[i * this->_cols + j] = calculate_nnn({i, j});
-                    }
-                }
+                this->calculate_neighbors();
             }
-            if (initial_values.size() != probabilities.size())
-            {
-                throw std::invalid_argument("Initial values and probabilities must have the same size.");
-            }
-
-            for (auto p : probabilities)
-            {
-                if (p < 0 || p > 1)
-                {
-                    throw std::invalid_argument("Probabilities must be between 0 and 1.");
-                }
-            }
-
-            if (std::accumulate(probabilities.begin(), probabilities.end(), 0.0) != 1.0)
-            {
-                throw std::invalid_argument("Probabilities must sum to 1.");
-            }
-
-            for (size_t i = 0; i < this->_rows; i++)
-            {
-                for (size_t j = 0; j < this->_cols; j++)
-                {
-                    this->_lattice_sites[i * this->_cols + j] = this->random_choice(initial_values, probabilities);
-                }
-            }
+            this->fill_lattice(initial_values, probabilities);
         }
 
         // copy constructor
@@ -488,14 +477,22 @@ namespace lattices2d
             return *this;
         }
         ~triangular_lattice() = default;
+        virtual std::unique_ptr<lattice_2d<T, mode, boundary_conditions>> clone() const override
+        {
+            return std::unique_ptr<lattice_2d<T, mode, boundary_conditions>>(new triangular_lattice<T,mode,boundary_conditions>(*this));
+        }
+        virtual std::unique_ptr<lattice_2d<T, mode, boundary_conditions>> move_clone() override
+        {
+            return std::unique_ptr<lattice_2d<T, mode, boundary_conditions>>(new triangular_lattice<T,mode,boundary_conditions>(std::move(*this)));
+        }
 
         void print_lattice() override
         {
             std::string offset;
-            for (size_t i = 0; i < this->_rows; i++)
+            for (std::size_t i = 0; i < this->_rows; i++)
             {
                 std::cout << offset;
-                for (size_t j = 0; j < this->_cols; j++)
+                for (std::size_t j = 0; j < this->_cols; j++)
                 {
                     std::cout << this->_lattice_sites[i * this->_cols + j] << " ";
                 }
