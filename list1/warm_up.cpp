@@ -78,24 +78,12 @@ int main(int argc, char **argv)
         }
     }
 
-    // Task 1
-    // square_lattice<site> lattice(L, {p,1-p}, {site::dog,site::empty});
-    // lattice.print_lattice_params();
-    // lattice.print_lattice();
 
-    // Task 2
+    square_lattice<site, neighbors::precalculate, bc::open> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
 
-    // square_lattice<site, neighbors_calculation::calculate_on_the_fly, bc::periodic> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
-    triangular_lattice<site, neighbors_calculation::calculate_on_the_fly, bc::open> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
+
+    // triangular_lattice<site, neighbors::calculate_on_the_fly, bc::open> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
     
-    // lattice({10,10}) = site::flea;
-    // for (auto neighbor : lattice.get_nnn({10,10}))
-    // {
-    //     std::cout << neighbor << std::endl;
-    //     lattice(neighbor) = site::visited_by_flea;
-    // }
-
-
     auto find_first = [&](site type) -> coord
     {
         for (uint i = 0; i < L; i++)
@@ -127,8 +115,7 @@ int main(int argc, char **argv)
         lattice.print_lattice();
         sleep_for(0.05s);
         auto possible_moves = lattice.get_nn(current_flea_pos);
-        std::remove_if(possible_moves.begin(), possible_moves.end(), [&](coord c) { return lattice(c) == site::empty; });
-
+        possible_moves.erase(std::remove_if(possible_moves.begin(), possible_moves.end(), [&](coord c) { return lattice(c) == site::empty; }), possible_moves.end());
         if (possible_moves.empty())
         {
             std::cout << "Flea cannot move. Ending simulation." << std::endl;
