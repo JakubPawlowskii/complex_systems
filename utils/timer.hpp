@@ -9,7 +9,6 @@
 
 #include <chrono>
 
-namespace lqs {
 
 //! Simple class for measuring runtime
 /*!
@@ -24,12 +23,17 @@ private:
 public:
     timer() { _m_beg = clock_t::now(); } //!< Constructor
 
-    void reset(); //!< Function resetting current time
+    void reset(){
+        _m_beg = clock_t::now();
+    } //!< Function resetting current time
 
-    [[nodiscard]] double elapsed() const; //!< Function returning the time elapsed between moment of call and _m_beg
+    [[nodiscard]] double elapsed() const{
+        return std::chrono::duration_cast<second_t>(clock_t::now() - _m_beg).count();
+    } //!< Function returning the time elapsed between moment of call and _m_beg
 
-    static double absolute_time(); //!< Function returning absolute time, without subtracting _m_beg
+    static double absolute_time(){
+        return std::chrono::duration_cast<second_t>(clock_t::now().time_since_epoch()).count();
+    } //!< Function returning absolute time, without subtracting _m_beg
 };
 
-}
 #endif //TIMER_HPP

@@ -39,6 +39,18 @@ private:
     }
 
 public:
+    // copy constructor
+    prng(const prng& other) {
+        for (int i = 0; i < 4; ++i) {
+            s[i] = other.s[i];
+        }
+    }
+    // move constructor
+    prng(prng&& other) noexcept {
+        for (int i = 0; i < 4; ++i) {
+            s[i] = other.s[i];
+        }
+    }
     virtual ~prng() = default;
 
     prng(){
