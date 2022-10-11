@@ -32,9 +32,13 @@ public:
         {
         case lattice_type::square:
             _lattice = std::unique_ptr<lattice_2d<uint, mode, bc::open>>(new square_lattice<uint, mode, bc::open>(rows, cols, {empty, tree}, {1 - _probability, _probability}));
+            _burned = _lattice->clone();
+            _clusters = _lattice->clone();
             break;
         case lattice_type::triangular:
             _lattice = std::unique_ptr<lattice_2d<uint, mode, bc::open>>(new triangular_lattice<uint, mode, bc::open>(rows, cols, {empty, tree}, {1 - _probability, _probability}));
+            _burned = _lattice->clone();
+            _clusters = _lattice->clone();
             break;
         }
         _cluster_sizes = {0, 0};
@@ -78,7 +82,6 @@ public:
     void burning_algorithm()
     {
         uint t = 2;
-        _burned = _lattice->clone();
         std::vector<coord> currently_burning;
         std::vector<coord> currently_burning_new;
 
@@ -123,8 +126,6 @@ public:
     void find_clusters(bool show_true_clusters = false)
     {
         int k = 2;
-        _clusters = _lattice->clone();
-
         std::function<int(int, const std::vector<int> &)> detect_cluster_number =
             [&detect_cluster_number](int k, const std::vector<int> &cluster_sizes)
         {
@@ -138,9 +139,6 @@ public:
         {
             for (std::size_t col = 0; col < _clusters->get_n_cols(); col++)
             {
-                // std::cout << std::endl;
-                // _clusters->print_lattice();
-
                 if (_clusters->at({row, col}) == tree)
                 {
                     auto valid_nn = _lattice->get_nn({row, col});
@@ -199,7 +197,8 @@ public:
                         k3 = detect_cluster_number(_clusters->at(valid_nn[2]), _cluster_sizes);
                         if (k1 == 0 || k2 == 0 || k3 == 0)
                         {
-                            int k_choice = k1 > 0 ? k1 : k2 > 0 ? k2 : k3;
+                            int k_choice = k1 > 0 ? k1 : k2 > 0 ? k2
+                                                                : k3;
                             _cluster_sizes[k_choice]++;
                             _clusters->at({row, col}) = k_choice;
                         }
@@ -259,7 +258,7 @@ public:
                 }
             }
         }
-        _cluster_sizes_distribution.reserve(_cluster_sizes.size());
+        _cluster_sizes_distribution.reserve(_lattice->get_n_sites());
         for (int size : _cluster_sizes)
         {
             if (_max_cluster_size < size)
@@ -267,6 +266,7 @@ public:
             if (size > 0)
                 _cluster_sizes_distribution[size]++;
         }
+        // _cluster_sizes_distribution.shrink_to_fit();
         if (show_true_clusters)
         {
             for (std::size_t row = 0; row < _clusters->get_n_rows(); row++)
@@ -284,26 +284,106 @@ public:
 int main(int argc, char **argv)
 {
 
-    timer t;
-    site_percolation<neighbors::calculate_on_the_fly> percolation(50, 50, lattice_type::square, 0.99);
-    // percolation.print_burned();
-    // percolation.burning_algorithm();
-    // std::cout << std::endl;
-    // percolation.print_burned();
-    // std::cout << "Percolates: " << percolation.is_percolating() << std::endl;
-    // std::cout << "Shortest path length: " << percolation.shortest_path_length() << std::endl;
-
-    // percolation.print_lattice();
-    percolation.find_clusters(true);
-    std::cout << std::endl;
-    percolation.print_clusters();
-    auto cl = percolation.get_cluster_sizes();
-    for (uint i = 0; i < cl.size(); i++)
+    if (argc != 2)
     {
-        std::cout << i << " " << cl[i] << std::endl;
+        throw std::invalid_argument("Invalid number of cmd arguments. Must be 1.");
     }
 
-    std::cout << "Time elapsed: " << t.elapsed() << " s" << std::endl;
+    size_t L = 4;
+    uint mcs = 10;
+    double p0 = 0.01;
+    double pk = 1.0;
+    double dp = 0.1;
+
+    std::string init_filename(argv[1]);
+    std::ifstream file(init_filename);
+
+    for (std::string line; std::getline(file, line);)
+    {
+        if (line.substr(0, 2) == "#L")
+        {
+            L = std::stoi(line.substr(2));
+        }
+        else if (line.substr(0, 2) == "#T")
+        {
+            mcs = std::stoi(line.substr(2));
+        }
+        else if (line.substr(0, 3) == "#p0")
+        {
+            p0 = std::stod(line.substr(3));
+        }
+        else if (line.substr(0, 3) == "#pk")
+        {
+            pk = std::stod(line.substr(3));
+        }
+        else if (line.substr(0, 3) == "#dp")
+        {
+            dp = std::stod(line.substr(3));
+        }
+        else
+        {   
+            std::cout << line.substr(0, 2) << std::endl;
+            throw std::invalid_argument("Invalid values in initialization file. Allowed values are #L, #T, #p0, #pk, #dp.");
+        }
+    }
+
+    std::vector<double> p_values;
+    for (double p = p0; p <= pk; p += dp)
+    {
+        p_values.push_back(p);
+    }
+
+    std::vector<std::vector<int>> cluster_sizes_distribution;
+    cluster_sizes_distribution.reserve(p_values.size());
+    for (uint i = 0; i < p_values.size(); i++)
+    {
+        cluster_sizes_distribution[i].reserve(L * L);
+    }
+
+    std::vector<int> max_cluster_size(p_values.size(), 0);
+    std::vector<double> p_flow(p_values.size(),0.0);
+
+    std::cout << "# ----------------------------------------" << std::endl;
+    std::cout << "# Monte Carlo simulation of percolation" << std::endl;
+    std::cout << "# ----------------------------------------" << std::endl;
+    std::cout << "# Parameters from "<< init_filename <<" : " << std::endl;
+    std::cout << "# L = " << L << std::endl;
+    std::cout << "# MCS = " << mcs << std::endl;
+    std::cout << "# dp = " << dp << std::endl;
+    std::cout << "# p0 = " << p0 << std::endl;
+    std::cout << "# pk = " << pk << std::endl;
+    std::cout << "# Starting simulation..." << std::endl;
+
+    timer time;
+
+    for (uint i = 0; i < p_values.size(); i++)
+    {
+        double p = p_values[i];
+        std::cout << "# Simulating p = " << p << std::endl;
+        for (uint j = 0; j < mcs; j++)
+        {
+            site_percolation<neighbors::calculate_on_the_fly> percolation(L, L, lattice_type::square, p);
+            percolation.burning_algorithm();
+            percolation.find_clusters();
+
+            p_flow[i] += static_cast<double>(percolation.is_percolating());
+            max_cluster_size[i] += percolation.get_max_cluster_size();
+
+            auto cluster_distribution = percolation.get_cluster_sizes_distribution();
+            for (uint s = 0; s < cluster_distribution.size(); s++)
+            {
+                cluster_sizes_distribution[i][s] += cluster_distribution[s];
+            }
+        }
+        for (uint s = 0; s < cluster_sizes_distribution[i].size(); s++)
+        {
+            cluster_sizes_distribution[i][s] /= mcs;
+        }
+        max_cluster_size[i] /= mcs;
+        p_flow[i] /= mcs;
+    }
+
+    std::cout << "# Time elapsed: " << time.elapsed() << " s" << std::endl;
 
     return 0;
 }
