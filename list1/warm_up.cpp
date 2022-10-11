@@ -79,10 +79,8 @@ int main(int argc, char **argv)
     }
 
 
-    square_lattice<site, neighbors::precalculate, bc::open> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
-
-
-    // triangular_lattice<site, neighbors::calculate_on_the_fly, bc::open> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
+    // square_lattice<site, neighbors::precalculate, bc::open> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
+    triangular_lattice<site, neighbors::calculate_on_the_fly, bc::open> lattice(L, L, {site::dog, site::empty}, {p, 1-p});
     
     auto find_first = [&](site type) -> coord
     {

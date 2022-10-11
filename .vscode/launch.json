@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/list1/build/${fileBasenameNoExtension}",
-            "args": [],
+            "args": ["perc_ini.txt"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
