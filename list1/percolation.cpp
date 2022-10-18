@@ -258,7 +258,7 @@ public:
                 }
             }
         }
-        _cluster_sizes_distribution.reserve(_lattice->get_n_sites());
+        _cluster_sizes_distribution.resize(_lattice->get_n_sites(), 0);
         for (int size : _cluster_sizes)
         {
             if (_max_cluster_size < size)
@@ -266,7 +266,6 @@ public:
             if (size > 0)
                 _cluster_sizes_distribution[size]++;
         }
-        // _cluster_sizes_distribution.shrink_to_fit();
         if (show_true_clusters)
         {
             for (std::size_t row = 0; row < _clusters->get_n_rows(); row++)
@@ -283,7 +282,7 @@ public:
 
 int main(int argc, char **argv)
 {
-
+    
     if (argc != 2)
     {
         throw std::invalid_argument("Invalid number of cmd arguments. Must be 1.");
@@ -333,18 +332,14 @@ int main(int argc, char **argv)
         p_values.push_back(p);
     }
 
-    std::vector<std::vector<int>> cluster_sizes_distribution;
-    cluster_sizes_distribution.reserve(p_values.size());
-    for (uint i = 0; i < p_values.size(); i++)
-    {
-        cluster_sizes_distribution[i].reserve(L * L);
-    }
+    std::vector<double> cluster_sizes_distribution;
+    cluster_sizes_distribution.resize(L*L,0);
 
-    std::vector<int> max_cluster_size(p_values.size(), 0);
+    std::vector<double> max_cluster_size(p_values.size(), 0);
     std::vector<double> p_flow(p_values.size(),0.0);
 
     std::cout << "# ----------------------------------------" << std::endl;
-    std::cout << "# Monte Carlo simulation of percolation on triangular lattice" << std::endl;
+    std::cout << "# Monte Carlo simulation of percolation on square lattice" << std::endl;
     std::cout << "# ----------------------------------------" << std::endl;
     std::cout << "# Parameters from "<< init_filename <<" : " << std::endl;
     std::cout << "# L = " << L << std::endl;
@@ -356,36 +351,48 @@ int main(int argc, char **argv)
 
     timer time;
 
+
+    std::string filename;
     for (uint i = 0; i < p_values.size(); i++)
     {
         double p = p_values[i];
         std::cout << "# Simulating p = " << p << std::endl;
         for (uint j = 0; j < mcs; j++)
         {
-            site_percolation<neighbors::calculate_on_the_fly> percolation(L, L, lattice_type::triangular, p);
+            site_percolation<neighbors::calculate_on_the_fly> percolation(L, L, lattice_type::square, p);
             percolation.burning_algorithm();
             percolation.find_clusters();
 
             p_flow[i] += static_cast<double>(percolation.is_percolating());
-            max_cluster_size[i] += percolation.get_max_cluster_size();
+            max_cluster_size[i] += static_cast<double>(percolation.get_max_cluster_size());
 
             auto cluster_distribution = percolation.get_cluster_sizes_distribution();
+            
             for (uint s = 0; s < cluster_distribution.size(); s++)
             {
-                cluster_sizes_distribution[i][s] += cluster_distribution[s];
+                cluster_sizes_distribution[s] += static_cast<double>(cluster_distribution[s]);
             }
         }
-        for (uint s = 0; s < cluster_sizes_distribution[i].size(); s++)
+
+        filename = "cluster_sizes_distribution_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + "_p" + std::to_string(p_values[i]) + ".dat";
+        std::ofstream file(filename);
+        for (uint s = 0; s < cluster_sizes_distribution.size(); s++)
         {
-            cluster_sizes_distribution[i][s] /= mcs;
+            if(cluster_sizes_distribution[s] > 0)
+                file << s << " " << cluster_sizes_distribution[s] / mcs << std::endl;
         }
+        file.close();
+        cluster_sizes_distribution.clear();
+        cluster_sizes_distribution.resize(L*L,0);
+
         max_cluster_size[i] /= mcs;
         p_flow[i] /= mcs;
     }
 
     // save p_flow to file together with p
     // name the file with simulation parameters
-    std::string filename = "p_flow_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    // std::string filename = "p_flow_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    filename = "p_flow_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
     std::ofstream p_flow_file(filename);
     for (uint i = 0; i < p_values.size(); i++)
     {
@@ -393,24 +400,11 @@ int main(int argc, char **argv)
     }
     p_flow_file.close();
 
-    // TODO :: make animations of clusters sizes distribution with p
-
-    // save cluster sizes distribution to file together with s
-    // name the file with simulation parameters
-    for (uint i = 0; i < p_values.size(); i++)
-    {
-        filename = "cluster_sizes_distribution_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + "_p" + std::to_string(p_values[i]) + ".dat";
-        std::ofstream cluster_sizes_distribution_file(filename);
-        for (uint s = 0; s < cluster_sizes_distribution[i].size(); s++)
-        {
-            cluster_sizes_distribution_file << s << " " << cluster_sizes_distribution[i][s] << std::endl;
-        }
-        cluster_sizes_distribution_file.close();
-    }
 
     // save max cluster size to file together with p
     // name the file with simulation parameters
-    filename = "max_cluster_size_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    // filename = "3_max_cluster_size_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    filename = "max_cluster_size_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
     std::ofstream max_cluster_size_file(filename);
     for (uint i = 0; i < p_values.size(); i++)
     {
