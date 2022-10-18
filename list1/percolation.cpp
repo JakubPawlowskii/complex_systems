@@ -339,7 +339,7 @@ int main(int argc, char **argv)
     std::vector<double> p_flow(p_values.size(),0.0);
 
     std::cout << "# ----------------------------------------" << std::endl;
-    std::cout << "# Monte Carlo simulation of percolation on square lattice" << std::endl;
+    std::cout << "# Monte Carlo simulation of percolation on triangle lattice" << std::endl;
     std::cout << "# ----------------------------------------" << std::endl;
     std::cout << "# Parameters from "<< init_filename <<" : " << std::endl;
     std::cout << "# L = " << L << std::endl;
@@ -359,7 +359,7 @@ int main(int argc, char **argv)
         std::cout << "# Simulating p = " << p << std::endl;
         for (uint j = 0; j < mcs; j++)
         {
-            site_percolation<neighbors::calculate_on_the_fly> percolation(L, L, lattice_type::square, p);
+            site_percolation<neighbors::calculate_on_the_fly> percolation(L, L, lattice_type::triangular, p);
             percolation.burning_algorithm();
             percolation.find_clusters();
 
@@ -374,7 +374,8 @@ int main(int argc, char **argv)
             }
         }
 
-        filename = "cluster_sizes_distribution_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + "_p" + std::to_string(p_values[i]) + ".dat";
+        filename = "3_cluster_sizes_distribution_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + "_p" + std::to_string(p_values[i]) + ".dat";
+        // filename = "cluster_sizes_distribution_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + "_p" + std::to_string(p_values[i]) + ".dat";
         std::ofstream file(filename);
         for (uint s = 0; s < cluster_sizes_distribution.size(); s++)
         {
@@ -391,8 +392,8 @@ int main(int argc, char **argv)
 
     // save p_flow to file together with p
     // name the file with simulation parameters
-    // std::string filename = "p_flow_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
-    filename = "p_flow_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    std::string filename = "p_flow_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    // filename = "p_flow_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
     std::ofstream p_flow_file(filename);
     for (uint i = 0; i < p_values.size(); i++)
     {
@@ -403,8 +404,8 @@ int main(int argc, char **argv)
 
     // save max cluster size to file together with p
     // name the file with simulation parameters
-    // filename = "3_max_cluster_size_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
-    filename = "max_cluster_size_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    filename = "3_max_cluster_size_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    // filename = "max_cluster_size_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
     std::ofstream max_cluster_size_file(filename);
     for (uint i = 0; i < p_values.size(); i++)
     {
