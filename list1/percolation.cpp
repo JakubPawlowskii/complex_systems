@@ -148,10 +148,10 @@ public:
                                                     bool flag = _lattice->at(c) != tree;
                                                     if(c.first > row) return true;
                                                     if(c.second > col) return true;
-                                                    // if(this->_lattice_type == lattice_type::triangular && (row % 2 == 0) && c.first < row && c.second == col) return true;
+                                                    if(this->_lattice_type == lattice_type::triangular && (row % 2 == 0) && c.first < row && c.second == col) return true;
                                                     return flag; }),
                                    valid_nn.end());
-                    int k0, k1, k2, k3 = 0;
+                    int k0, k1, k2 = 0;//, k3 = 0;
                     switch (valid_nn.size())
                     {
                     case 0:
@@ -191,62 +191,62 @@ public:
                             _clusters->at({row, col}) = k2;
                         }
                         break;
-                    case 3:
-                        k1 = detect_cluster_number(_clusters->at(valid_nn[0]), _cluster_sizes);
-                        k2 = detect_cluster_number(_clusters->at(valid_nn[1]), _cluster_sizes);
-                        k3 = detect_cluster_number(_clusters->at(valid_nn[2]), _cluster_sizes);
-                        if (k1 == 0 || k2 == 0 || k3 == 0)
-                        {
-                            int k_choice = k1 > 0 ? k1 : k2 > 0 ? k2
-                                                                : k3;
-                            _cluster_sizes[k_choice]++;
-                            _clusters->at({row, col}) = k_choice;
-                        }
-                        else if (k1 == k2 && k2 == k3)
-                        {
-                            _cluster_sizes[k1]++;
-                            _clusters->at({row, col}) = k1;
-                        }
-                        else if (k1 == k2)
-                        {
-                            _cluster_sizes[k1] += _cluster_sizes[k3] + 1;
-                            _cluster_sizes[k3] = -k1;
-                            _clusters->at({row, col}) = k1;
-                        }
-                        else if (k1 == k3)
-                        {
-                            _cluster_sizes[k1] += _cluster_sizes[k2] + 1;
-                            _cluster_sizes[k2] = -k1;
-                            _clusters->at({row, col}) = k1;
-                        }
-                        else if (k2 == k3)
-                        {
-                            _cluster_sizes[k2] += _cluster_sizes[k1] + 1;
-                            _cluster_sizes[k1] = -k2;
-                            _clusters->at({row, col}) = k2;
-                        }
-                        else if (k1 < k2 && k1 < k3)
-                        {
-                            _cluster_sizes[k1] += _cluster_sizes[k2] + _cluster_sizes[k3] + 2;
-                            _cluster_sizes[k2] = -k1;
-                            _cluster_sizes[k3] = -k1;
-                            _clusters->at({row, col}) = k1;
-                        }
-                        else if (k2 < k1 && k2 < k3)
-                        {
-                            _cluster_sizes[k2] += _cluster_sizes[k1] + _cluster_sizes[k3] + 2;
-                            _cluster_sizes[k1] = -k2;
-                            _cluster_sizes[k3] = -k2;
-                            _clusters->at({row, col}) = k2;
-                        }
-                        else
-                        {
-                            _cluster_sizes[k3] += _cluster_sizes[k1] + _cluster_sizes[k2] + 2;
-                            _cluster_sizes[k1] = -k3;
-                            _cluster_sizes[k2] = -k3;
-                            _clusters->at({row, col}) = k3;
-                        }
-                        break;
+                    // case 3:
+                    //     k1 = detect_cluster_number(_clusters->at(valid_nn[0]), _cluster_sizes);
+                    //     k2 = detect_cluster_number(_clusters->at(valid_nn[1]), _cluster_sizes);
+                    //     k3 = detect_cluster_number(_clusters->at(valid_nn[2]), _cluster_sizes);
+                    //     if (k1 == 0 || k2 == 0 || k3 == 0)
+                    //     {
+                    //         int k_choice = k1 > 0 ? k1 : k2 > 0 ? k2
+                    //                                             : k3;
+                    //         _cluster_sizes[k_choice]++;
+                    //         _clusters->at({row, col}) = k_choice;
+                    //     }
+                    //     else if (k1 == k2 && k2 == k3)
+                    //     {
+                    //         _cluster_sizes[k1]++;
+                    //         _clusters->at({row, col}) = k1;
+                    //     }
+                    //     else if (k1 == k2)
+                    //     {
+                    //         _cluster_sizes[k1] += _cluster_sizes[k3] + 1;
+                    //         _cluster_sizes[k3] = -k1;
+                    //         _clusters->at({row, col}) = k1;
+                    //     }
+                    //     else if (k1 == k3)
+                    //     {
+                    //         _cluster_sizes[k1] += _cluster_sizes[k2] + 1;
+                    //         _cluster_sizes[k2] = -k1;
+                    //         _clusters->at({row, col}) = k1;
+                    //     }
+                    //     else if (k2 == k3)
+                    //     {
+                    //         _cluster_sizes[k2] += _cluster_sizes[k1] + 1;
+                    //         _cluster_sizes[k1] = -k2;
+                    //         _clusters->at({row, col}) = k2;
+                    //     }
+                    //     else if (k1 < k2 && k1 < k3)
+                    //     {
+                    //         _cluster_sizes[k1] += _cluster_sizes[k2] + _cluster_sizes[k3] + 2;
+                    //         _cluster_sizes[k2] = -k1;
+                    //         _cluster_sizes[k3] = -k1;
+                    //         _clusters->at({row, col}) = k1;
+                    //     }
+                    //     else if (k2 < k1 && k2 < k3)
+                    //     {
+                    //         _cluster_sizes[k2] += _cluster_sizes[k1] + _cluster_sizes[k3] + 2;
+                    //         _cluster_sizes[k1] = -k2;
+                    //         _cluster_sizes[k3] = -k2;
+                    //         _clusters->at({row, col}) = k2;
+                    //     }
+                    //     else
+                    //     {
+                    //         _cluster_sizes[k3] += _cluster_sizes[k1] + _cluster_sizes[k2] + 2;
+                    //         _cluster_sizes[k1] = -k3;
+                    //         _cluster_sizes[k2] = -k3;
+                    //         _clusters->at({row, col}) = k3;
+                    //     }
+                    //     break;
                     default:
                         throw std::runtime_error("Invalid number of neighbors.");
                         break;
@@ -336,7 +336,7 @@ int main(int argc, char **argv)
     cluster_sizes_distribution.resize(L*L,0);
 
     std::vector<double> max_cluster_size(p_values.size(), 0);
-    std::vector<double> p_flow(p_values.size(),0.0);
+    // std::vector<double> p_flow(p_values.size(),0.0);
 
     std::cout << "# ----------------------------------------" << std::endl;
     std::cout << "# Monte Carlo simulation of percolation on triangle lattice" << std::endl;
@@ -360,10 +360,10 @@ int main(int argc, char **argv)
         for (uint j = 0; j < mcs; j++)
         {
             site_percolation<neighbors::calculate_on_the_fly> percolation(L, L, lattice_type::triangular, p);
-            percolation.burning_algorithm();
+            // percolation.burning_algorithm();
             percolation.find_clusters();
 
-            p_flow[i] += static_cast<double>(percolation.is_percolating());
+            // p_flow[i] += static_cast<double>(percolation.is_percolating());
             max_cluster_size[i] += static_cast<double>(percolation.get_max_cluster_size());
 
             auto cluster_distribution = percolation.get_cluster_sizes_distribution();
@@ -374,7 +374,7 @@ int main(int argc, char **argv)
             }
         }
 
-        filename = "3_cluster_sizes_distribution_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + "_p" + std::to_string(p_values[i]) + ".dat";
+        filename = "2_cluster_sizes_distribution_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + "_p" + std::to_string(p_values[i]) + ".dat";
         // filename = "cluster_sizes_distribution_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + "_p" + std::to_string(p_values[i]) + ".dat";
         std::ofstream file(filename);
         for (uint s = 0; s < cluster_sizes_distribution.size(); s++)
@@ -387,24 +387,24 @@ int main(int argc, char **argv)
         cluster_sizes_distribution.resize(L*L,0);
 
         max_cluster_size[i] /= mcs;
-        p_flow[i] /= mcs;
+        // p_flow[i] /= mcs;
     }
 
     // save p_flow to file together with p
     // name the file with simulation parameters
-    std::string filename = "p_flow_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
-    // filename = "p_flow_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
-    std::ofstream p_flow_file(filename);
-    for (uint i = 0; i < p_values.size(); i++)
-    {
-        p_flow_file << p_values[i] << " " << p_flow[i] << std::endl;
-    }
-    p_flow_file.close();
+    // filename = "p_flow_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    // // filename = "p_flow_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    // std::ofstream p_flow_file(filename);
+    // for (uint i = 0; i < p_values.size(); i++)
+    // {
+    //     p_flow_file << p_values[i] << " " << p_flow[i] << std::endl;
+    // }
+    // p_flow_file.close();
 
 
     // save max cluster size to file together with p
     // name the file with simulation parameters
-    filename = "3_max_cluster_size_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
+    filename = "2_max_cluster_size_triangle_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
     // filename = "max_cluster_size_square_L" + std::to_string(L) + "_mcs" + std::to_string(mcs) + ".dat";
     std::ofstream max_cluster_size_file(filename);
     for (uint i = 0; i < p_values.size(); i++)
