@@ -10,11 +10,5 @@ set( CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native -Wall -Wextra" ) #-DNDEBUG de
 
 include_directories("utils")
 
-# find_package( OpenMP )
-# if (OPENMP_FOUND)
-#     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp" )
-#     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}" )
-# endif ()
-
 add_subdirectory(list1)
 add_subdirectory(list2)
