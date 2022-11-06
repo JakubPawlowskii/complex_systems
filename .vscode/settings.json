@@ -69,5 +69,8 @@
         "codecvt": "cpp",
         "typeindex": "cpp",
         "variant": "cpp"
-    }
+    },
+    "cSpell.words": [
+        "CXXGRAPH"
+    ]
 }
