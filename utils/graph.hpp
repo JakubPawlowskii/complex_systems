@@ -14,35 +14,33 @@
 #include <type_traits>
 
 #include "../extern/graph_base.hpp"
+#include "../extern/dijkstra.hpp"
+
+enum class directed
+{
+    yes,
+    no
+};
 
 /**
  * Stores network in form of adjacency list.
  * Generates graph from .METIS file.
  */
 
-// TODO :: main use with adjacency list, graph_base is just as support????
-
-// TODO :: use std::vector<std::vector> instead of unrolled vector
-// TODO :: implement conversion from adj list to nodes and edges
-
-template <class V, class E>
+template <directed D = directed::no, class V = uint, class E = uint>
 class graph : public graph_base<V, E>
 {
 private:
     std::string network_name_;
     std::size_t number_of_nodes_;
     std::size_t number_of_links_;
-    double average_degree_ = 0;     // average degree of a node, calculated from node_degree array
-    double average_clustering_ = 0; // average clustering coefficient of a node, calculated from node_degree array
+    double average_degree_ = -1.0;     // average degree of a node, calculated from node_degree array
+    double average_clustering_ = -1.0; // average clustering coefficient of a node, calculated from node_degree array
     std::size_t max_degree_ = 0;
-    std::vector<std::size_t> node_degree_; // array of node degrees
-    std::vector<std::size_t> node_index_;  // array of indexes of first link of each node in 1-D adjacency_list
     /**
-     * 1-D adjacency list
-     * unrolled 2-D adjacency list, where all lists of neighbors are written in one row
-     * accessed through get_node_neighbors
+     * 2-D adjacency list
      */
-    std::vector<V> adjacency_list_{};
+    std::vector<std::vector<V>> adjacency_list_{};
 
 public:
     graph() = default;
@@ -88,88 +86,42 @@ public:
 
         number_of_nodes_ = std::stoi(network_parameters[0]);
         number_of_links_ = std::stoi(network_parameters[1]);
-        node_degree_.resize(number_of_nodes_);
-        node_index_.resize(number_of_nodes_);
-        adjacency_list_.resize(2 * number_of_links_);
+
+        if constexpr (D == directed::yes)
+            number_of_links_ *= 2;
+        adjacency_list_.resize(number_of_nodes_);
 
         /*
          * Read adjacency list from rest of .metis file
          */
 
-        std::size_t sum_of_degrees = 0;
+        // std::size_t sum_of_degrees = 0;
         std::size_t node_num = 0;
+        max_degree_ = 0;
+        std::size_t current_degree = 0;
         while (getline(file, line))
         {
-            node_index_[node_num] = sum_of_degrees;
-            count = 0;
+            adjacency_list_[node_num] = std::vector<V>{};
             while ((pos = line.find(delimiter)) != std::string::npos)
             {
                 std::string token = line.substr(0, pos);
-                adjacency_list_[node_index_[node_num] + count] = std::stoi(token) - 1;
-                count++;
+                adjacency_list_[node_num].push_back(std::stoi(token) - 1);
                 line.erase(0, pos + delimiter.length());
+                current_degree++;
             }
-            node_degree_[node_num] = count;
-            sum_of_degrees += count;
             node_num++;
+            if (current_degree > max_degree_)
+                max_degree_ = current_degree;
+            current_degree = 0;
         }
-
-        max_degree_ = *std::max(node_degree_.begin(), node_degree_.end());
     }
-
-    template <class U = V, class T = E>
-    void from_adj_list_to_nodes_and_edges(bool directed = false, std::enable_if_t<std::is_integral_v<U> && std::is_integral_v<T>, void> * = nullptr)
-    {
-        for (auto i = 0; i < number_of_nodes_; i++)
-        {
-            this->add_vertex(i);
-        }
-        std::size_t cnt = 0;
-        if (directed)
-        {
-            for (auto i = 0; i < number_of_nodes_; i++)
-            {
-                for (auto j = 0; j < node_degree_[i]; j++)
-                {
-                    this->add_edge(i, adjacency_list_[node_index_[i] + j], cnt);
-                    cnt++;
-                }
-            }
-        }
-        else
-        {
-            for (auto i = 0; i < number_of_nodes_; i++)
-            {
-                for (auto j = 0; j < node_degree_[i]; j++)
-                {
-                    if (i < adjacency_list_[node_index_[i] + j])
-                    {
-                        this->add_edge(i, adjacency_list_[node_index_[i] + j], cnt);
-                        cnt++;
-                    }
-                }
-            }
-        }
-
-        adjacency_list_.clear();
-        node_index_.clear();
-    }
-
-
 
     /*
      * Returns the number of nodes
      */
     [[nodiscard]] std::size_t get_number_of_nodes() const
     {
-        if constexpr (std::is_same_v<V, std::size_t> && std::is_same_v<E, std::size_t>)
-        {
-            return number_of_nodes_;
-        }
-        else
-        {
-            return this->amount_vertices();
-        }
+        return number_of_nodes_;
     }
 
     /*
@@ -177,31 +129,24 @@ public:
      */
     [[nodiscard]] std::size_t get_number_of_links()
     {
-        if constexpr (std::is_same_v<V, std::size_t> && std::is_same_v<E, std::size_t>)
-        {
-            return number_of_links_;
-        }
-        else
-        {
-            return this->amount_edges();
-        }
+        return number_of_links_;
     }
 
     /*
      * Returns average degree of nodes in graph
      */
-    uint get_average_degree()
+    double get_average_degree()
     {
-        if (average_degree_ == 0)
+        if (average_degree_ < 0)
             calculate_average_degree();
         return average_degree_;
     }
     /*
      * Returns average clustering coefficient of nodes in graph
      */
-    uint get_average_clustering()
+    double get_average_clustering()
     {
-        if (average_clustering_ == 0)
+        if (average_clustering_ < 0.0)
             calculate_average_clustering();
         return average_clustering_;
     }
@@ -215,7 +160,7 @@ public:
         degree_distribution.resize(max_degree_);
         for (uint i = 0; i < number_of_nodes_; i++)
         {
-            degree_distribution[node_degree_[i]]++;
+            degree_distribution[adjacency_list_[i].size()]++;
         }
         return degree_distribution;
     }
@@ -223,21 +168,13 @@ public:
     /*
      * Returns vector of neighbors of node
      */
-    std::vector<uint> get_node_neighbors(uint node)
+    std::vector<V> get_node_neighbors(std::size_t node_idx)
     {
-        if (node >= number_of_nodes_)
+        if (node_idx >= number_of_nodes_)
         {
             throw std::invalid_argument("graph::get_node_neighbors: Node number is out of range");
         }
-        std::vector<uint> neighbors;
-        uint degree = static_cast<uint>(node_degree_[node]);
-        uint index = static_cast<uint>(node_index_[node]);
-        neighbors.resize(degree);
-        for (uint i = 0; i < degree; i++)
-        {
-            neighbors[i] = adjacency_list_[index + i];
-        }
-        return neighbors;
+        return adjacency_list_[node_idx];
     }
 
     /*
@@ -247,11 +184,9 @@ public:
     {
         for (std::size_t i = 0; i < number_of_nodes_; i++)
         {
-            uint degree = node_degree_[i];
-            uint index = node_index_[i];
-            for (uint j = 0; j < degree; j++)
+            for (auto v : adjacency_list_[i])
             {
-                std::cout << adjacency_list_[index + j] << " ";
+                std::cout << v << " ";
             }
             std::cout << std::endl;
         }
@@ -272,35 +207,93 @@ public:
 
         for (std::size_t i = 0; i < number_of_nodes_; i++)
         {
-            uint degree = node_degree_[i];
-            uint index = node_index_[i];
-            for (uint j = 0; j < degree; j++)
+            for (auto v : adjacency_list_[i])
             {
-                file << adjacency_list_[index + j] << " ";
+                std::cout << v << " ";
             }
-            file << std::endl;
+            std::cout << std::endl;
         }
     }
 
-    bool is_linked(const int src, const int dest)
+    bool is_linked(const V src, const V dest)
     {
         if (src >= number_of_nodes_ || dest >= number_of_nodes_)
         {
             throw std::invalid_argument("graph::is_linked: Node number is out of range");
         }
-        uint src_deg = node_degree_[src];
-        uint src_index = node_index_[src];
-        for (uint i = 0; i < src_deg; i++)
+
+        for (auto v : adjacency_list_[src])
         {
-            if (adjacency_list_[src_index + i] == dest)
+            if (v == dest)
                 return true;
         }
         return false;
     }
-
     std::string get_name() const
     {
         return network_name_;
+    }
+
+    template <class U = V, class T = E>
+    void from_adj_list_to_nodes_and_edges(std::enable_if_t<std::is_integral_v<U> && std::is_integral_v<T>, void> * = nullptr)
+    {
+        E cnt = 0;
+        for (std::size_t i = 0; i < number_of_nodes_; i++)
+        {
+            this->add_vertex(i);
+        }
+        for (std::size_t i = 0; i < number_of_nodes_; i++)
+        {
+            auto vert = this->vertex_data(i);
+            if constexpr (D == directed::yes)
+            {
+                for (auto v : adjacency_list_[i])
+                {
+                    this->add_edge(vert, v, cnt);
+                    cnt++;
+                }
+            }
+            else
+            {
+                for (auto v : adjacency_list_[i])
+                {
+                    this->add_undirected_edge(vert, v, cnt);
+                    cnt++;
+                }
+            }
+        }
+
+        adjacency_list_.clear();
+    }
+
+    std::size_t get_node_degree(std::size_t node_idx)
+    {
+        return adjacency_list_[node_idx].size();
+    }
+
+    double get_node_clustering_coeff(std::size_t node_idx)
+    {
+        auto neighbors = adjacency_list_[node_idx];
+        double link_between_neighbors = 0;
+        for (auto src : neighbors)
+        {
+            for (auto dsc : neighbors)
+            {
+                if (is_linked(src, dsc))
+                    link_between_neighbors += 1.0;
+            }
+        }
+        if constexpr (D == directed::no)
+            link_between_neighbors /= 2;
+
+        std::size_t degree = get_node_degree(node_idx);
+        if (degree <= 1)
+            return 0;
+        else
+        {
+            auto den = get_node_degree(node_idx) * (get_node_degree(node_idx) - 1);
+            return 2.0 * link_between_neighbors / den;
+        }
     }
 
 private:
@@ -309,14 +302,21 @@ private:
      */
     void calculate_average_degree()
     {
-        uint degree = 0;
-        for (uint i = 0; i < number_of_nodes_; i++)
-            degree += node_degree_[i];
+        double degree = 0;
+        for (std::size_t i = 0; i < number_of_nodes_; i++)
+            degree += get_node_degree(i);
         degree /= number_of_nodes_;
         average_degree_ = degree;
     }
 
-    void calculate_average_clustering();
+    void calculate_average_clustering()
+    {
+        double clustering = 0;
+        for (std::size_t i = 0; i < number_of_nodes_; i++)
+            clustering += get_node_clustering_coeff(i);
+        clustering /= number_of_nodes_;
+        average_clustering_ = clustering;
+    }
 };
 
 #endif // GRAPH_H

@@ -77,7 +77,8 @@
         "ranges": "cpp",
         "shared_mutex": "cpp",
         "span": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "strstream": "cpp"
     },
     "cSpell.words": [
         "CXXGRAPH"

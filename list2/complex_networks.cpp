@@ -1,39 +1,57 @@
 #include <iostream>
 
-// #include "../extern/graph_base.hpp"
-
 #include "../utils/graph.hpp"
+
 
 int main()
 {
-    auto g = graph<int,int>{};
-    g.add_vertex(0);
-    g.add_vertex(1);
-    g.add_vertex(2);
-    g.add_vertex(3);
-    g.add_vertex(4);
+    auto g = graph{};
+    g.read_from_metis("/home/jakubp/Code/Studies/semester_2/complex_systems/list2/networks/facebook.metis");
+    
+    std::cout << "Number of nodes: " << g.get_number_of_nodes() << std::endl;
+    std::cout << "Number of edges: " << g.get_number_of_links() << std::endl;
+    std::cout << "Average degree: " << g.get_average_degree() << std::endl;
+    std::cout << "Average clustering: " << g.get_average_clustering() << std::endl;
 
-    g.add_undirected_edge(0, 1,1);
-    g.add_undirected_edge(0, 2,2);
-    g.add_undirected_edge(0, 3,3);
-    g.add_undirected_edge(1, 2,4);
-    g.add_undirected_edge(1, 3,5);
-    g.add_undirected_edge(2, 3,6);
-    g.add_undirected_edge(2, 4,7);
-    g.add_undirected_edge(3, 4,8);
+    g.from_adj_list_to_nodes_and_edges();
 
-    // auto res = graph.vertex_ids();
-    // for (auto i : res)
-    //     std::cout << i << std::endl;
+    std::size_t shortest_path = std::numeric_limits<std::size_t>::max();
 
-    // auto res2 = graph.edge_ids();
-    // for (auto i : res2)
-    //     std::cout << i << std::endl;
+    dijkstra searcher(g, g.vertex_data(10));
+    auto res = searcher.search_path(g.vertex_data(1000));
+    if(res.has_value())
+    {
+        auto [path,len] = res.value();
+        for(auto v : path ) std::cout << v << " --- ";
+        std::cout << std::endl;
+        std::cout << "Path length is " << len << std::endl;
 
-    auto res3 = g.vertex_data(0);
-    std::cout << res3 << std::endl;
+    }
 
-    g.clear();
+    // for(std::size_t i = 0; i < g.get_number_of_nodes(); i++)
+    // {
+    //     std::cout << "Node " << i << " has " << g.get_node_neighbors(i).size() << " neighbors" << std::endl;
+    //     std::cout << std::flush;
+    //     auto src = g.vertex_data(i);
+    //     dijkstra searcher{g, src};
+    //     for(std::size_t j = i+1; j < g.get_number_of_nodes(); j++)
+    //     {
+    //         auto dest = g.vertex_data(j);
+    //         auto res = searcher.search_path(dest);
+
+    //         if(res.has_value())
+    //         {
+    //             auto path_len = res.value().second;
+
+    //             if (path_len < shortest_path)
+    //             {
+    //                 shortest_path = path_len;
+    //             }
+    //         }
+    //     }
+    // }
+
+    // std::cout << "Shortest path: " << shortest_path << std::endl;
 
    return 0;
 }
