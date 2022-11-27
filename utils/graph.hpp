@@ -72,7 +72,7 @@ public:
          * Initialize class variables.
          */
         getline(file, line);
-        line.erase(line.find('#'), 1);
+        line.erase(line.find('%'), 1);
         network_name_ = line;
 
         getline(file, line);
@@ -101,6 +101,7 @@ public:
         std::size_t current_degree = 0;
         while (getline(file, line))
         {
+            // std::cout << line << std::endl;
             adjacency_list_[node_num] = std::vector<V>{};
             while ((pos = line.find(delimiter)) != std::string::npos)
             {
@@ -109,6 +110,18 @@ public:
                 line.erase(0, pos + delimiter.length());
                 current_degree++;
             }
+            
+            std::string token = line.substr(0, pos);
+            try
+            {
+                adjacency_list_[node_num].push_back(std::stoi(token) - 1);
+                line.erase(0, pos + delimiter.length());
+                current_degree++;
+            }
+            catch(const std::exception& e)
+            {            }
+            
+
             node_num++;
             if (current_degree > max_degree_)
                 max_degree_ = current_degree;
@@ -116,6 +129,7 @@ public:
         }
     }
 
+    
     /*
      * Returns the number of nodes
      */
@@ -237,7 +251,6 @@ public:
     template <class U = V, class T = E>
     void from_adj_list_to_nodes_and_edges(std::enable_if_t<std::is_integral_v<U> && std::is_integral_v<T>, void> * = nullptr)
     {
-        E cnt = 0;
         for (std::size_t i = 0; i < number_of_nodes_; i++)
         {
             this->add_vertex(i);
@@ -249,16 +262,14 @@ public:
             {
                 for (auto v : adjacency_list_[i])
                 {
-                    this->add_edge(vert, v, cnt);
-                    cnt++;
+                    this->add_edge(vert, v, 1);
                 }
             }
             else
             {
                 for (auto v : adjacency_list_[i])
                 {
-                    this->add_undirected_edge(vert, v, cnt);
-                    cnt++;
+                    this->add_undirected_edge(vert, v, 1);
                 }
             }
         }
