@@ -15,6 +15,7 @@
 
 #include "../extern/graph_base.hpp"
 #include "../extern/dijkstra.hpp"
+#include "prng.hpp"
 
 enum class directed
 {
@@ -110,7 +111,7 @@ public:
                 line.erase(0, pos + delimiter.length());
                 current_degree++;
             }
-            
+
             std::string token = line.substr(0, pos);
             try
             {
@@ -118,9 +119,9 @@ public:
                 line.erase(0, pos + delimiter.length());
                 current_degree++;
             }
-            catch(const std::exception& e)
-            {            }
-            
+            catch (const std::exception &e)
+            {
+            }
 
             node_num++;
             if (current_degree > max_degree_)
@@ -129,7 +130,160 @@ public:
         }
     }
 
-    
+    // G(N, p) - Erdős-Rényi random graph
+    template <class U = V, class T = E>
+    void erdos_renyi_simple(const std::size_t &number_of_nodes, const double &p_edge, std::enable_if_t<std::is_integral_v<U> && std::is_integral_v<T>, void> * = nullptr)
+    {
+        this->clear_edges();
+        this->clear();
+
+        number_of_nodes_ = number_of_nodes;
+        number_of_links_ = 0;
+        adjacency_list_.resize(number_of_nodes_);
+
+        prng rng;
+        if constexpr (D == directed::yes)
+        {
+            for (std::size_t i = 0; i < number_of_nodes_; i++)
+            {
+                for (std::size_t j = 0; j < number_of_nodes_; j++)
+                {
+                    if (i == j)
+                        continue;
+                    if (rng.random_double() < p_edge)
+                    {
+                        adjacency_list_[i].push_back(j);
+                        number_of_links_++;
+                    }
+                }
+            }
+        }
+        else
+        {
+            for (std::size_t i = 0; i < number_of_nodes_; i++)
+            {
+                for (std::size_t j = i + 1; j < number_of_nodes_; j++)
+                {
+                    if (rng.random_double() < p_edge)
+                    {
+                        adjacency_list_[i].push_back(j);
+                        adjacency_list_[j].push_back(i);
+                        number_of_links_ += 2;
+                    }
+                }
+            }
+        }
+    }
+
+    // k-regular graph (ring lattice)
+    template <class U = V, class T = E>
+    void k_regular_graph(std::size_t num_nodes, std::size_t k, std::enable_if_t<std::is_integral_v<U> && std::is_integral_v<T>, void> * = nullptr)
+    {
+        this->clear_edges();
+        this->clear();
+
+        if (k > num_nodes - 1)
+        {
+            throw std::invalid_argument("k must be <= to n-1");
+        }
+
+        number_of_nodes_ = num_nodes;
+        number_of_links_ = 0;
+        adjacency_list_.resize(number_of_nodes_);
+
+        if constexpr (D == directed::yes)
+        {
+            if (k % 2)
+            {
+                for (std::size_t i = 0; i < number_of_nodes_; i++)
+                {
+                    for (std::size_t j = 0; j < k / 2; j++)
+                    {
+                        adjacency_list_[i].push_back((i + j + 1) % number_of_nodes_);
+                        number_of_links_++;
+                    }
+                    if (i < number_of_nodes_ / 2)
+                    {
+                        adjacency_list_[i].push_back(i + number_of_nodes_/2);
+                        number_of_links_++;
+                    }
+                }
+            }
+            else
+            {
+                for (std::size_t i = 0; i < number_of_nodes_; i++)
+                {
+                    for (std::size_t j = 0; j < k / 2; j++)
+                    {
+                        adjacency_list_[i].push_back((i + j + 1) % number_of_nodes_);
+
+                        number_of_links_++;
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (k % 2)
+            {
+                for (std::size_t i = 0; i < number_of_nodes_; i++)
+                {
+                    for (std::size_t j = 0; j < k / 2; j++)
+                    {
+                        adjacency_list_[i].push_back((i + j+1) % number_of_nodes_);
+                        adjacency_list_[(i + j + 1) % number_of_nodes_].push_back(i);
+                        number_of_links_++;
+                    }
+                    if (i < number_of_nodes_ / 2)
+                    {
+                        adjacency_list_[i].push_back(i + number_of_nodes_/2);
+                        adjacency_list_[i + number_of_nodes_/2].push_back(i);
+                        number_of_links_++;
+                    }
+                }
+            }
+            else
+            {
+                for (std::size_t i = 0; i < number_of_nodes_; i++)
+                {
+                    for (std::size_t j = 0; j < k / 2; j++)
+                    {
+                        adjacency_list_[i].push_back((i + j+1) % number_of_nodes_);
+                        adjacency_list_[(i + j+1) % number_of_nodes_].push_back(i);
+
+                        number_of_links_ += 2;
+                    }
+                }
+            }
+        }
+    }
+
+    // Watts-Strogatz small-world graph
+    template <class U = V, class T = E>
+    void watts_strogatz(std::size_t num_edges, std::size_t k, double beta, std::enable_if_t<std::is_integral_v<U> && std::is_integral_v<T>, void> * = nullptr)
+    {
+        k_regular_graph(num_edges, k);
+
+        // rewire edges with probability beta
+        prng rng;
+        for (std::size_t i = 0; i < number_of_nodes_; i++)
+        {
+            for (std::size_t j = 0; j < adjacency_list_[i].size(); j++)
+            {
+                if (rng.random_double() < beta)
+                {
+                    std::size_t new_target = rng.random_uint_64() % number_of_nodes_;
+                    while (new_target == i || new_target == adjacency_list_[i][j])
+                    {
+                        new_target = rng.random_uint_64() % number_of_nodes_;
+                    }
+                    adjacency_list_[i][j] = new_target;
+                }
+            }
+        }
+
+
+    }
     /*
      * Returns the number of nodes
      */
