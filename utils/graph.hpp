@@ -375,12 +375,14 @@ public:
 
         for (std::size_t i = 0; i < number_of_nodes_; i++)
         {
+            file << i << " ";
             for (auto v : adjacency_list_[i])
             {
-                std::cout << v << " ";
+                file << v << " ";
             }
-            std::cout << std::endl;
+            file << std::endl;
         }
+        file.close();
     }
 
     bool is_linked(const V src, const V dest)
