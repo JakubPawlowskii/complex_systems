@@ -50,7 +50,7 @@ def size_of_giant_component(G):
 
 def main():
     num_nodes = 10000
-    L = 1000
+    L = 100
     beta = 0.01
     avg_ks = [2, 4]
     fs = np.linspace(0.0, 0.99, 100)
