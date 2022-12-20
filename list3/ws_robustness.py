@@ -59,33 +59,69 @@ def main():
     Pcloseness = np.zeros((len(avg_ks), len(fs)))
     Prandom = np.zeros((len(avg_ks), len(fs)))
     
+    # number of nodes to remove at each step
+    num_nodes_to_remove = int(num_nodes * (fs[1] - fs[0]))
+    node_idx_to_remove = [np.arange(i*num_nodes_to_remove,(i+1)*num_nodes_to_remove) for i in range(num_nodes//num_nodes_to_remove - 1)]
+    # print(node_idx_to_remove)
+    # print(fs)
+    print(len(node_idx_to_remove))
+    # print(len(fs))
     for i,avg_k in enumerate(avg_ks):
-        for j,f in enumerate(fs):
-            print("Running avg_k = {}, f = {:.3f}".format(avg_k, f))
-            for _ in range(L):
-                Gdegree = generate_ws_graph(num_nodes, avg_k, beta)
-                Grandom = copy.deepcopy(Gdegree)
-                Gbetweenness = copy.deepcopy(Gdegree)
-                Gcloseness = copy.deepcopy(Gdegree)
-                num_nodes_to_remove = int(f * num_nodes)
-                remove_nodes_with_highest_degree(Gdegree, num_nodes_to_remove)
-                remove_random_nodes(Grandom, num_nodes_to_remove)
-                remove_nodes_with_highest_betweenness_centrality(Gbetweenness, num_nodes_to_remove)
-                remove_nodes_with_highest_closeness_centrality(Gcloseness, num_nodes_to_remove)
+        for _ in range(L):
+            
+            Gdegree = generate_ws_graph(num_nodes, avg_k, beta)
+            alg = nk.centrality.DegreeCentrality(Gdegree)
+            alg.run()
+            degrees = alg.ranking()
+            # print(degrees)
+            Grandom = copy.deepcopy(Gdegree)
+            
+            Gbetweenness = copy.deepcopy(Gdegree)    
+            alg = nk.centrality.Betweenness(Gbetweenness)
+            alg.run()
+            betweenness = alg.ranking()
+            
+            Gcloseness = copy.deepcopy(Gdegree)
+            alg = nk.centrality.Closeness(Gcloseness, True,  nk.centrality.ClosenessVariant.Generalized) 
+            alg.run()
+            closeness = alg.ranking()
+
+            Pdegree[i,0] += size_of_giant_component(Gdegree)
+            Prandom[i,0] += size_of_giant_component(Grandom)
+            Pbetweenness[i,0] += size_of_giant_component(Gbetweenness)
+            Pcloseness[i,0] += size_of_giant_component(Gcloseness)
+            for j,node_idxs in enumerate(node_idx_to_remove):
+                print("Running avg_k = {}, f = {:.3f}".format(avg_k, fs[j+1]))
                 
+                remove_deg = [degrees[idx][0] for idx in node_idxs]
+                for node in remove_deg:
+                    Gdegree.removeNode(node)
+            
+                for _ in range(num_nodes_to_remove):
+                    node = nk.graphtools.randomNode(Grandom)
+                    Grandom.removeNode(node)
+                        
+                remove_bet = [betweenness[idx][0] for idx in node_idxs]
+                for node in remove_bet:
+                    Gbetweenness.removeNode(node)
+                
+                remove_clo = [closeness[idx][0] for idx in node_idxs]
+                for node in remove_clo:
+                    Gcloseness.removeNode(node)
+        
                 Pdegree[i,j] += size_of_giant_component(Gdegree)
                 Prandom[i,j] += size_of_giant_component(Grandom)
                 Pbetweenness[i,j] += size_of_giant_component(Gbetweenness)
                 Pcloseness[i,j] += size_of_giant_component(Gcloseness)
-                
-            Pdegree[i,j] /= L
-            Prandom[i,j] /= L
-            Pbetweenness[i,j] /= L
-            Pcloseness[i,j] /= L    
-    
+            
+            for j in range(len(fs)):    
+                Pdegree[i,j] /= L
+                Prandom[i,j] /= L
+                Pbetweenness[i,j] /= L
+                Pcloseness[i,j] /= L    
     # for each avg_k, save to file the fraction of nodes removed vs. size of giant component
     for i,avg_k in enumerate(avg_ks):
-        np.savetxt("wr_robustness_N_{}_L_{}_beta_{:.3f}_k_{}.dat".format(num_nodes, L, beta, avg_k), np.array([fs, Prandom[i,:], Pdegree[i,:], Pbetweenness[i,:], Pcloseness[i,:]]).T)
+        np.savetxt("v2_wr_robustness_N_{}_L_{}_beta_{:.3f}_k_{}.dat".format(num_nodes, L, beta, avg_k), np.array([fs, Prandom[i,:], Pdegree[i,:], Pbetweenness[i,:], Pcloseness[i,:]]).T)
           
         
         
