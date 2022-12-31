@@ -16,8 +16,8 @@ def size_of_giant_component(G):
 
 def main():
     num_nodes = 10000
-    L = 20
-    avg_ks = [0.5,1]
+    L = 100
+    avg_ks = [0.5,1,2,4]
     fs = np.linspace(0.0, 0.99, 100)
     Pdegree = np.zeros((len(avg_ks), len(fs)))
     Pbetweenness = np.zeros((len(avg_ks), len(fs)))
@@ -75,7 +75,7 @@ def main():
                    
     # for each avg_k, save to file the fraction of nodes removed vs. size of giant component
     for i,avg_k in enumerate(avg_ks):
-        np.savetxt("1_er_robustness_N_{}_L_{}_k_{}.dat".format(num_nodes, L, avg_k), np.array([fs, Prandom[i,:], Pdegree[i,:], Pbetweenness[i,:], Pcloseness[i,:]]).T)
+        np.savetxt("{}_er_robustness_N_{}_L_{}_k_{}.dat".format(L,num_nodes, L, avg_k), np.array([fs, Prandom[i,:], Pdegree[i,:], Pbetweenness[i,:], Pcloseness[i,:]]).T)
           
         
     
