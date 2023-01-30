@@ -1,5 +1,5 @@
-using Agents, LinearAlgebra
-using DrWatson: @dict
+using Agents, LinearAlgebra, Colors
+# using DrWatson: @dict
 
 @agent Bird ContinuousAgent{2} begin
     speed::Float64
@@ -113,23 +113,27 @@ function bird_marker(b::Bird)
     bird_polygon = Polygon(Point2f[(-0.5, -0.5), (1, 0), (-0.5, 0.5)])
     φ = atan(b.vel[2], b.vel[1]) #+ π/2 + π
     scale(rotate2D(bird_polygon, φ), 2)
-    
 end
+    
+function bird_color(b::Bird)
+    HSV(atan(b.vel[2], b.vel[1]) * 360 / 2π, 1, 1)
+end
+    
 
 model = initialize_model(
-    n_birds = 300,
-    speed = 1.0,
-    extent = (200, 200),
-    separation = 5.0,
+    n_birds = 100,
+    speed = 2.0,
+    extent = (100, 100),
+    separation = 4.0,
     visual_distance = 5.0,
-    vision_angle = π/4,
+    vision_angle = π,
     cohere_factor = 0.25,
     separate_factor = 0.25,
     match_factor = 0.01,
 )
 
 
-figure, = abmplot(model; am = bird_marker, add_controls = true, title = "Flocking",
+figure, = abmplot(model; am = bird_marker, ac=bird_color, add_controls = true, title = "Flocking",
 agent_step! = agent_step!)
 figure
 
